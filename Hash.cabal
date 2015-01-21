@@ -11,7 +11,8 @@ executable Hash
                    base >= 4,
                    containers >=0.5 && <0.6,
                    directory >=1.2 && <1.3,
-                   MissingH >=1.3 && <1.4
+                   MissingH >=1.3 && <1.4,
+                   regex-compat >=0.95 && <0.96
   ghc-options:     -Wall
   other-modules:   
                    Hash,

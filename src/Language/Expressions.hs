@@ -1,6 +1,8 @@
 -- | module
 module Language.Expressions where
 
+import Data.List
+
 {-|
     Contains the data structures describing the structure of the language itself
     You are free to use a different structure, as long as it describes a similar
@@ -38,7 +40,7 @@ data Comp = CEQ String String -- ^ == operator.
     | CGT String String       -- ^ > operator.
     | CLE String String       -- ^ <= operator.
     | CLT String String       -- ^ < operator.
-    | CLI String            -- ^ A wrapped expression literal - True if nonempty.
+    | CLI String              -- ^ A wrapped expression literal - True if nonempty.
     deriving (Eq, Show)
 
 {-|
@@ -73,3 +75,22 @@ data Conditional = If {
 data TLExpr = TLCmd Cmd
     | TLCnd Conditional
     deriving Show
+
+class Evaluable a where
+    evaluate :: a -> Bool
+    
+instance Evaluable Pred where
+    evaluate (Pred c) = evaluate c 
+    evaluate (Not p) = not $ evaluate p
+    evaluate (And p r) = evaluate p && evaluate r
+    evaluate (Or p r) = evaluate p || evaluate r
+    evaluate (Parens p) = evaluate p
+
+instance Evaluable Comp where
+    evaluate (CEQ s t) = s == t
+    evaluate (CNE s t) = s /= t
+    evaluate (CGE s t) = s >= t
+    evaluate (CGT s t) = s > t
+    evaluate (CLE s t) = s <= t
+    evaluate (CLT s t) = s < t
+    evaluate (CLI s) = not $ null s

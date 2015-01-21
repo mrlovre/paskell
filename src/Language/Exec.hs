@@ -1,10 +1,8 @@
 module Language.Exec where
 
-import           Control.Monad
 import           Data.Map             as M
 import           Language.Expressions
 import           System.Directory
-import           System.Exit
 
 {-|
     A model of a command which is waiting for arguments and a state to run.

@@ -34,22 +34,44 @@ move [src, target] sstate = do
     let src' = fixPath src sstate
         target' = fixPath target sstate
     renameFile src' target'
-    putStrLn ""
     return sstate {output = "File successfully renamed."}
 move plenty sstate = do
     createDirectoryIfMissing True dest
     let srcs' = map (`fixPath` sstate) srcs
     doWork srcs' where
-    dest:srcs = reverse plenty
-    doWork [] = return sstate {output = "Files successfully moved."}
-    doWork (src:rest) = do
-        dest' <- makeRelativeToCurrentDirectory dest
-        let dest'' = fixPath dest' sstate
-        renameFile src (dest'' ++ "/" ++ src)
-        doWork rest
+        dest:srcs = reverse plenty
+        doWork [] = return sstate {output = "Files successfully moved."}
+        doWork (src:rest) = do
+            dest' <- makeRelativeToCurrentDirectory dest
+            let dest'' = fixPath dest' sstate
+            renameFile src (dest'' ++ "/" ++ src)
+            doWork rest
 
-copy = undefined
-remove = undefined
+copy [] sstate = return sstate {output = "Missing source and destination."}
+copy [_] sstate = return sstate {output = "Missing destination."}
+copy [src, target] sstate = do
+    let src' = fixPath src sstate
+        target' = fixPath target sstate
+    copyFile src' target'
+    return sstate {output = "File successfully copied."}
+copy plenty sstate = do
+    createDirectoryIfMissing True dest
+    let srcs' = map (`fixPath` sstate) srcs
+    doWork srcs' where
+        dest:srcs = reverse plenty
+        doWork [] = return sstate {output = "Files successfully copied."}
+        doWork (src:rest) = do
+            dest' <- makeRelativeToCurrentDirectory dest
+            let dest'' = fixPath dest' sstate
+            copyFile src (dest'' ++ "/" ++ src)
+            doWork rest
+            
+remove [] sstate = return sstate {output = "Missing filename(s)."}
+remove files sstate = do
+    let files' = map (`fixPath` sstate) files
+    forM_ files' removeFile
+    return sstate {output = "File(s) successfully deleted."}    
+
 create [] sstate = return sstate {output = "Missing filename(s)."}
 create files sstate = do
     let files' = map (`fixPath` sstate) files
@@ -62,8 +84,32 @@ removeDir files sstate = do
     forM_ files' removeDirectory
     return sstate {output = "Directory(es) successfully removed."}
 
-copyDir = undefined
-
+copyDir [] sstate = return sstate {output = "Missing source name."}
+copyDir [_] sstate = return sstate {output = "Missing destination name."}
+copyDir [src, dest] sstate = do
+    let src' = fixPath src sstate
+        dest' = fixPath dest sstate
+    cpdir src' dest'
+    return sstate {output = "Directory succesfully copied."}
+    
+copyDir plenty sstate = do
+    createDirectoryIfMissing True dest
+    let srcs' = map (`fixPath` sstate) srcs
+    doWork srcs' where
+        dest:srcs = reverse plenty
+        doWork [] = return sstate {output = "Files successfully copied."}
+        doWork (src:rest) = do
+            cpdir src dest
+            doWork rest
+    
+cpdir :: FilePath -> FilePath -> IO ()
+cpdir src dest = do
+    createDirectoryIfMissing True dest
+    dest' <- makeRelativeToCurrentDirectory dest    
+    names <- getDirectoryContents src
+    forM_ names ( \f -> do
+        copyFile (src ++ "/" ++ f) (dest' ++ "/" ++ f))
+    
 makeDir [] sstate = return sstate {output = "Missing directory name(s)."}
 makeDir files sstate = do
     let files' = map (`fixPath` sstate) files
@@ -116,3 +162,4 @@ fixPath path ss =
     case path of
         ('/':_) -> path
         _ -> workingDir ++ "/" ++ path
+
