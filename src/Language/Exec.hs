@@ -1,7 +1,6 @@
 module Language.Exec where
 
 import           Control.Monad
-import           Data.List
 import           Data.Map             as M
 import           Language.Expressions
 import           System.Directory
@@ -37,16 +36,6 @@ createInitialScriptState = do
     workingDir <- getCurrentDirectory
     return ScriptState {output = "", wd = workingDir, vartable = M.empty}
 
-
-{-|
-    Runs a set of commands for a given command table. If this is the first
-    command in the chain, it is given a FilePath and constructs a new, initially
-    blank, ScriptState. Otherwise, it is given the state as left by the previous
-    command's execution.
--}
-runHashProgram :: CommandTable -> Either FilePath ScriptState -> [TLExpr] -> IO ScriptState
-runHashProgram = undefined
-
 {-|
     Calculates the result of a top-level command execution
 -}
@@ -56,20 +45,29 @@ runTopLevel ct ss (TLCmd cmdData) = do
     putStrLn $ output nss
     return nss
 
-runTopLevel ct ss (TLCnd tlcnd) = do
+runTopLevel ct ss (TLCnd tlcnd) =
     case tlcnd of
         If cnd cthn ->
             if evaluate cnd then do
-                results <- forM cthn ( \x -> executeCmd x ct ss)
+                results <- forM cthn ( \x -> do
+                    nss <- executeCmd x ct ss
+                    putStrLn $ output nss
+                    return nss)
                 return $ last results
             else
                 return ss
         IfElse cnd cthn cels ->
             if evaluate cnd then do
-                results <- forM cthn ( \x -> executeCmd x ct ss)
+                results <- forM cthn ( \x -> do
+                    nss <- executeCmd x ct ss
+                    putStrLn $ output nss
+                    return nss)
                 return $ last results
             else do
-                results <- forM cels ( \x -> executeCmd x ct ss)
+                results <- forM cels ( \x -> do
+                    nss <- executeCmd x ct ss
+                    putStrLn $ output nss
+                    return nss)
                 return $ last results
 
 executeCmd :: Cmd -> CommandTable -> ScriptState -> IO ScriptState

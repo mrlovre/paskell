@@ -1,8 +1,6 @@
 -- | module
 module Language.Expressions where
 
-import Data.List
-
 {-|
     Contains the data structures describing the structure of the language itself
     You are free to use a different structure, as long as it describes a similar
@@ -78,9 +76,9 @@ data TLExpr = TLCmd Cmd
 
 class Evaluable a where
     evaluate :: a -> Bool
-    
+
 instance Evaluable Pred where
-    evaluate (Pred c) = evaluate c 
+    evaluate (Pred c) = evaluate c
     evaluate (Not p) = not $ evaluate p
     evaluate (And p r) = evaluate p && evaluate r
     evaluate (Or p r) = evaluate p || evaluate r

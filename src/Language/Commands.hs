@@ -2,6 +2,7 @@ module Language.Commands where
 
 import           Control.Monad
 import qualified Data.Map         as M
+import           Data.Maybe
 import           Language.Exec
 import           System.Directory
 import           System.Exit
@@ -24,7 +25,9 @@ commands = M.fromList [
     ("pwd", pointWorkingDir),
     ("ls", list),
     ("cd", changeDir),
-    ("cat", cat)
+    ("cat", cat),
+    ("echo", echo),
+    ("assign", assign)
     ]
 
 move, copy, remove, create, copyDir, removeDir, makeDir :: Command
@@ -65,12 +68,12 @@ copy plenty sstate = do
             let dest'' = fixPath dest' sstate
             copyFile src (dest'' ++ "/" ++ src)
             doWork rest
-            
+
 remove [] sstate = return sstate {output = "Missing filename(s)."}
 remove files sstate = do
     let files' = map (`fixPath` sstate) files
     forM_ files' removeFile
-    return sstate {output = "File(s) successfully deleted."}    
+    return sstate {output = "File(s) successfully deleted."}
 
 create [] sstate = return sstate {output = "Missing filename(s)."}
 create files sstate = do
@@ -91,7 +94,7 @@ copyDir [src, dest] sstate = do
         dest' = fixPath dest sstate
     cpdir src' dest'
     return sstate {output = "Directory succesfully copied."}
-    
+
 copyDir plenty sstate = do
     createDirectoryIfMissing True dest
     let srcs' = map (`fixPath` sstate) srcs
@@ -101,15 +104,15 @@ copyDir plenty sstate = do
         doWork (src:rest) = do
             cpdir src dest
             doWork rest
-    
+
 cpdir :: FilePath -> FilePath -> IO ()
 cpdir src dest = do
     createDirectoryIfMissing True dest
-    dest' <- makeRelativeToCurrentDirectory dest    
+    dest' <- makeRelativeToCurrentDirectory dest
     names <- getDirectoryContents src
     forM_ names ( \f -> do
         copyFile (src ++ "/" ++ f) (dest' ++ "/" ++ f))
-    
+
 makeDir [] sstate = return sstate {output = "Missing directory name(s)."}
 makeDir files sstate = do
     let files' = map (`fixPath` sstate) files
@@ -141,11 +144,26 @@ changeDir dir sstate = do
     let dir' = case dir of
             [] -> "~"
             _ -> fixPath (head dir) sstate
-    when (dir' == "~") $ do
-        dir2 <- getHomeDirectory
-        setCurrentDirectory dir2
+    if (dir' == "~")
+        then do
+            dir2 <- getHomeDirectory
+            setCurrentDirectory dir2
+        else do
+            setCurrentDirectory dir'
     dir'' <- getCurrentDirectory
     return sstate {wd = dir''}
+
+assign :: Command
+assign [varname, value] sstate = do
+    let vt = vartable sstate
+    return sstate {vartable = M.insertWith const varname value vt}
+
+assign _ sstate = return sstate {output = "Missing arguments."}
+
+echo :: Command
+echo args sstate = do
+    putStrLn $ unwords $ map (`escapeVariable` sstate) args
+    return $ sstate{output = ""}
 
 cat :: Command
 cat [] sstate = return sstate {output = "Missing file name(s)."}
@@ -163,3 +181,11 @@ fixPath path ss =
         ('/':_) -> path
         _ -> workingDir ++ "/" ++ path
 
+
+escapeVariable :: String -> ScriptState -> String
+escapeVariable sv sstate =
+    case sv of
+        '$':vname ->
+            let vt = vartable sstate in
+            fromMaybe "" (M.lookup vname vt)
+        _ -> sv
