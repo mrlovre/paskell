@@ -1,5 +1,7 @@
 module Language.Exec where
 
+import           Control.Monad
+import           Data.List
 import           Data.Map             as M
 import           Language.Expressions
 import           System.Directory
@@ -50,18 +52,36 @@ runHashProgram = undefined
 -}
 runTopLevel :: CommandTable -> ScriptState -> TLExpr -> IO ScriptState
 runTopLevel ct ss (TLCmd cmdData) = do
+    nss <- executeCmd cmdData ct ss
+    putStrLn $ output nss
+    return nss
+
+runTopLevel ct ss (TLCnd tlcnd) = do
+    case tlcnd of
+        If cnd cthn ->
+            if evaluate cnd then do
+                results <- forM cthn ( \x -> executeCmd x ct ss)
+                return $ last results
+            else
+                return ss
+        IfElse cnd cthn cels ->
+            if evaluate cnd then do
+                results <- forM cthn ( \x -> executeCmd x ct ss)
+                return $ last results
+            else do
+                results <- forM cels ( \x -> executeCmd x ct ss)
+                return $ last results
+
+executeCmd :: Cmd -> CommandTable -> ScriptState -> IO ScriptState
+executeCmd cmdData cmdTable ss = do
     let cmdName = name cmdData
-        cmd = M.lookup cmdName ct
-    nss <- case cmd of
+        cmd = M.lookup cmdName cmdTable
+    case cmd of
         Just cmd' -> do
             let arguments = args cmdData
             cmd' arguments ss
         Nothing ->
             return ss {output = "Command " ++ cmdName ++ " not defined."}
-    putStrLn $ output nss
-    return nss
-
-runTopLevel ct ss (TLCnd cnd) = undefined -- TODO
 
 {-
     The rest of the module should consist of similar functions, calling each

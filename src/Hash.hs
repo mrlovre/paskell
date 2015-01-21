@@ -3,6 +3,8 @@ module Hash where
 import           Control.Exception
 import           Control.Monad
 import           Data.List
+import qualified Data.Map             as M
+import           Data.Maybe
 import           Language.Commands
 import           Language.Exec
 import           Language.Expressions
@@ -65,8 +67,7 @@ ifThenElse ss = (cond', cthen', celse') where
     celse' = map (parseCmd . words) $ (wordsWhen (==';') . unwords) e
 
 parsePred :: [String] -> Pred
-parsePred ss
-    | "==" `elem` ss = Pred (CEQ s1 s2) where (s1, s2) = span (/= "==") ss
+parsePred ss = Pred (parseComp ss)
 
 
 parseCmd :: [String] -> Cmd
@@ -76,8 +77,25 @@ parseCmd chunks =
         (n:a) -> Cmd {name=n, args=a, inDir=Nothing, outDir=Nothing, append=False}
 
 parseComp :: [String] -> Comp
-parseComp ss =
-    
+parseComp ss
+    | "==" `elem` ss = CEQ s1 s2 where (s1, s2) = parseVars "==" ss
+
+parseVars :: String -> [String] -> (String, String)
+parseVars delim ss =
+    let (s1, s') = span (/= delim) ss
+        s2 = drop 1 s2
+        s1' = concat s1
+        s2' = concat s2 in
+    (s1', s2')
+
+escapeVariable :: String -> ScriptState -> String
+escapeVariable sv sstate =
+    case sv of
+        '$':vname ->
+            let vt = vartable sstate in
+            fromMaybe "" (M.lookup vname vt)
+        _ -> sv
+
 
 defaultCommand :: Cmd
 defaultCommand = Cmd {name="welcome", args=[], inDir=Nothing, outDir=Nothing, append=False}
