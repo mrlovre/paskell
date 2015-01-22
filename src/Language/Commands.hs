@@ -1,11 +1,13 @@
 module Language.Commands where
 
 import           Control.Monad
-import qualified Data.Map         as M
+import qualified Data.Map           as M
 import           Data.Maybe
 import           Language.Exec
+import           System.Cmd
 import           System.Directory
 import           System.Exit
+import           System.Posix.Files
 
 {-|
     A map of (command name, command) pairs, used to abstract command
@@ -27,7 +29,9 @@ commands = M.fromList [
     ("cd", changeDir),
     ("cat", cat),
     ("echo", echo),
-    ("assign", assign)
+    ("assign", assign),
+    ("ping", ping),
+    ("chmod", chmod)x
     ]
 
 move, copy, remove, create, copyDir, removeDir, makeDir :: Command
@@ -189,3 +193,25 @@ escapeVariable sv sstate =
             let vt = vartable sstate in
             fromMaybe "" (M.lookup vname vt)
         _ -> sv
+
+ping, chmod, hexdump :: Command
+
+ping [] sstate = return sstate {output="Missing arguments"}
+ping args sstate = do
+    system ("ping " ++ head args)
+    return sstate
+
+chmod [file, perms] sstate = do
+    let mode =
+            case perms of
+                "+x" -> ownerExecuteMode `unionFileModes` groupExecuteMode `unionFileModes` otherExecuteMode
+                "+w" -> ownerWriteMode `unionFileModes` groupWriteMode `unionFileModes` otherWriteMode
+                "+r" -> ownerReadMode `unionFileModes` groupReadMode `unionFileModes` otherReadMode
+    setFileMode file mode
+    return sstate{output="Mode changed."}
+
+
+
+chmod _ sstate = return sstate {output="Missing arguments"}
+
+hexdump = undefined
